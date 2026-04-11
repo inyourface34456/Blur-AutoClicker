@@ -44,6 +44,7 @@ export interface Settings {
   explanationMode: ExplanationMode;
   lastPanel: SavedPanel;
   showStopReason: boolean;
+  showStopOverlay: boolean;
 }
 
 export interface ClickerStatus {
@@ -78,10 +79,10 @@ export const DEFAULT_SETTINGS: Settings = {
   timeLimit: 60,
   timeLimitUnit: "s",
   cornerStopEnabled: true,
-  cornerStopTL: 25,
-  cornerStopTR: 25,
-  cornerStopBL: 25,
-  cornerStopBR: 25,
+  cornerStopTL: 50,
+  cornerStopTR: 50,
+  cornerStopBL: 50,
+  cornerStopBR: 50,
   edgeStopEnabled: true,
   edgeStopTop: 40,
   edgeStopBottom: 40,
@@ -96,6 +97,7 @@ export const DEFAULT_SETTINGS: Settings = {
   explanationMode: "text",
   lastPanel: "simple",
   showStopReason: true,
+  showStopOverlay: true,
 };
 
 function sanitizeSavedPanel(value: unknown): SavedPanel {

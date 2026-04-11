@@ -41,6 +41,7 @@ pub struct ClickerSettings {
     pub explanation_mode: String,
     pub last_panel: String,
     pub show_stop_reason: bool,
+    pub show_stop_overlay: bool,
 }
 
 impl Default for ClickerSettings {
@@ -64,10 +65,10 @@ impl Default for ClickerSettings {
             time_limit: 60.0,
             time_limit_unit: "s".to_string(),
             corner_stop_enabled: true,
-            corner_stop_tl: 25,
-            corner_stop_tr: 25,
-            corner_stop_bl: 25,
-            corner_stop_br: 25,
+            corner_stop_tl: 50,
+            corner_stop_tr: 50,
+            corner_stop_bl: 50,
+            corner_stop_br: 50,
             edge_stop_enabled: true,
             edge_stop_top: 40,
             edge_stop_right: 40,
@@ -82,6 +83,7 @@ impl Default for ClickerSettings {
             explanation_mode: "text".to_string(),
             last_panel: "simple".to_string(),
             show_stop_reason: true,
+            show_stop_overlay: true,
         }
     }
 }

@@ -3,6 +3,7 @@ use crate::ClickerSettings;
 
 use std::sync::atomic::{AtomicBool, AtomicU64};
 use std::sync::{Arc, Mutex};
+
 pub struct ClickerState {
     pub running: Arc<AtomicBool>,
     pub settings: Mutex<ClickerSettings>,
@@ -12,6 +13,7 @@ pub struct ClickerState {
     pub suppress_hotkey_until_release: AtomicBool,
     pub hotkey_capture_active: AtomicBool,
     pub registered_hotkey: Mutex<Option<HotkeyBinding>>,
+    pub settings_initialized: AtomicBool,
 }
 
 #[derive(Clone, serde::Serialize)]

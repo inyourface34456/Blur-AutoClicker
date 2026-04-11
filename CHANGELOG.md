@@ -1,6 +1,9 @@
-# v3.2.0 - ..2026 (d.m.y)
+# v3.2.0 - 11.04.2026 (d.m.y)
+## ❇️ New Features:
+- Added an Overlay for the edge / corner stop features. This was a major pain and i am not done with it yet. the current implementation is more of a test.
 ## 🔹 Changed:
 - Replaced GetProcessTimes with QueryThreadCycleTime for CPU usage measurement. This gives a more accurate representation of the CPU time used by the clicker. All runs should now output accurate CPU usage, even if the clicker only ran for a single millisecond. The trade-off is that CPU usage is now measured for only the clicker thread instead of the entire app, though the clicker thread is the main source of CPU usage anyway.
+- Polling for update every hour instead of on app launch.
 ## 🔺 Fix:
 - Added timeout for writing settings, this prevents settings race condition. (Usually a non-issue, but it's best practice)
 ## 🔸 Performance Updates:

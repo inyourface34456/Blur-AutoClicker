@@ -159,26 +159,6 @@ export default function SettingsPanel({
 
         <div className="settings-divider" />
 
-        <div className="settings-row">
-          <div className="settings-label-group">
-            <span className="settings-label">Reset All Settings</span>
-            <span className="settings-sublabel">
-              Will reset all input fields and settings to the Defaults.
-            </span>
-          </div>
-          <button
-            className="settings-btn-danger"
-            onClick={() => {
-              setResetting(true);
-              onReset().finally(() => setResetting(false));
-            }}
-          >
-            {resetting ? "Resetting..." : "Reset"}
-          </button>
-        </div>
-
-        <div className="settings-divider" />
-
         {/* -- Your Usage Data -- */}
 
         <div className="settings-row">
@@ -241,6 +221,26 @@ export default function SettingsPanel({
 
         <div className="settings-row">
           <div className="settings-label-group">
+            <span className="settings-label">Stop Hitbox Overlay</span>
+            <span className="settings-sublabel">
+              Toggles whether the stop hitbox overlay is shown.
+            </span>
+          </div>
+          <div className="settings-seg-group">
+            {["On", "Off"].map((o) => (
+              <button
+                key={o}
+                className={`settings-seg-btn ${(settings.showStopOverlay ? "On" : "Off") === o ? "active" : ""}`}
+                onClick={() => update({ showStopOverlay: o === "On" })}
+              >
+                {o}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="settings-row">
+          <div className="settings-label-group">
             <span className="settings-label">Stop Reason Alert</span>
             <span className="settings-sublabel">
               Shows why the clicker stopped in the title bar.
@@ -278,6 +278,25 @@ export default function SettingsPanel({
               </button>
             ))}
           </div>
+        </div>
+
+        <div className="settings-divider" />
+        <div className="settings-row">
+          <div className="settings-label-group">
+            <span className="settings-label">Reset All Settings</span>
+            <span className="settings-sublabel">
+              Will reset all input fields and settings to the Defaults.
+            </span>
+          </div>
+          <button
+            className="settings-btn-danger"
+            onClick={() => {
+              setResetting(true);
+              onReset().finally(() => setResetting(false));
+            }}
+          >
+            {resetting ? "Resetting..." : "Reset"}
+          </button>
         </div>
       </div>
       <div

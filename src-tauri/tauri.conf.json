@@ -21,8 +21,20 @@
           "fullscreen": false,
           "decorations": false,
           "transparent": true
+        },
+        {
+          "label": "overlay",
+          "url": "overlay.html",
+          "title": "Overlay",
+          "fullscreen": true,
+          "transparent": true,
+          "decorations": false,
+          "alwaysOnTop": true,
+          "visible": false,
+          "skipTaskbar": true,
+          "focusable": false,
+          "shadow": false
         }
-        
       ],
       "security": {
         "csp": null

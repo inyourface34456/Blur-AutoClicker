@@ -43,7 +43,32 @@ pub fn update_settings(
     settings: ClickerSettings,
 ) -> Result<ClickerSettings, String> {
     let state = app.state::<ClickerState>();
+    let was_initialized = state.settings_initialized.load(Ordering::SeqCst);
+    let old = state.settings.lock().unwrap();
+    let zone_changed = old.edge_stop_enabled != settings.edge_stop_enabled
+        || old.edge_stop_top != settings.edge_stop_top
+        || old.edge_stop_right != settings.edge_stop_right
+        || old.edge_stop_bottom != settings.edge_stop_bottom
+        || old.edge_stop_left != settings.edge_stop_left
+        || old.corner_stop_enabled != settings.corner_stop_enabled
+        || old.corner_stop_tl != settings.corner_stop_tl
+        || old.corner_stop_tr != settings.corner_stop_tr
+        || old.corner_stop_bl != settings.corner_stop_bl
+        || old.corner_stop_br != settings.corner_stop_br;
+    drop(old);
+
     *state.settings.lock().unwrap() = settings.clone();
+
+    if !was_initialized {
+        state.settings_initialized.store(true, Ordering::SeqCst);
+        log::info!("[Settings] First update_settings — initialized, skipping overlay");
+        return Ok(settings);
+    }
+
+    if zone_changed {
+        let _ = crate::overlay::show_overlay(&app);
+    }
+
     Ok(settings)
 }
 

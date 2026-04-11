@@ -10,7 +10,6 @@ import {
 } from "react";
 import type { Settings } from "../../store";
 import HotkeyCaptureInput from "../HotkeyCaptureInput";
-import { invoke } from "@tauri-apps/api/core";
 import React from "react";
 
 interface Props {
@@ -150,8 +149,6 @@ const EDGE_KEYS = {
   bottom: "edgeStopBottom",
 } as const;
 
-const OVERLAY_VISIBILITY_MS = 5000;
-
 function maxDoubleClickDelayMs(
   clickSpeed: number,
   clickInterval: string,
@@ -179,7 +176,6 @@ export default function AdvancedPanelLayout({
   const rowSpacing = compact ? 6 : 8;
   const cardBodyClass = `adv-card-body ${compact ? "adv-card-body-compact" : ""}`;
   const featureBodyClass = `adv-feature-body ${compact ? "adv-feature-body-compact" : ""}`;
-  const overlayTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     const max = maxDoubleClickDelayMs(
@@ -191,32 +187,6 @@ export default function AdvancedPanelLayout({
     }
   }, [settings.clickSpeed, settings.clickInterval]);
 
-  const showZoneOverlay = () => {
-    void invoke("show_overlay").catch((err) => {
-      console.error("Failed to show overlay:", err);
-    });
-
-    if (overlayTimerRef.current !== null) {
-      window.clearTimeout(overlayTimerRef.current);
-    }
-
-    overlayTimerRef.current = window.setTimeout(() => {
-      overlayTimerRef.current = null;
-      void invoke("hide_overlay").catch((err) => {
-        console.error("Failed to hide overlay:", err);
-      });
-    }, OVERLAY_VISIBILITY_MS);
-  };
-
-  useEffect(() => {
-    return () => {
-      if (overlayTimerRef.current !== null) {
-        window.clearTimeout(overlayTimerRef.current);
-        overlayTimerRef.current = null;
-      }
-      void invoke("hide_overlay").catch(() => {});
-    };
-  }, []);
 
   const showDesc = (text: string) =>
     showExplanations ? <p className="adv-desc">{text}</p> : null;
@@ -482,7 +452,9 @@ export default function AdvancedPanelLayout({
                 <span className="adv-card-title">Corner Stop</span>
                 <ToggleBtn
                   value={settings.cornerStopEnabled}
-                  onChange={(v) => update({ cornerStopEnabled: v })}
+                  onChange={(v) => {
+                    update({ cornerStopEnabled: v });
+                  }}
                 />
               </div>
               <CardDivider />
@@ -502,7 +474,6 @@ export default function AdvancedPanelLayout({
                           value={settings[CORNER_KEYS[c]]}
                           onChange={(v) => {
                             update({ [CORNER_KEYS[c]]: v });
-                            showZoneOverlay();
                           }}
                           min={0}
                           max={999}
@@ -521,7 +492,9 @@ export default function AdvancedPanelLayout({
                 <span className="adv-card-title">Edge Stop</span>
                 <ToggleBtn
                   value={settings.edgeStopEnabled}
-                  onChange={(v) => update({ edgeStopEnabled: v })}
+                  onChange={(v) => {
+                    update({ edgeStopEnabled: v });
+                  }}
                 />
               </div>
               <CardDivider />
@@ -541,7 +514,6 @@ export default function AdvancedPanelLayout({
                           value={settings[EDGE_KEYS[e]]}
                           onChange={(v) => {
                             update({ [EDGE_KEYS[e]]: v });
-                            showZoneOverlay();
                           }}
                           min={0}
                           max={999}
@@ -934,7 +906,9 @@ export default function AdvancedPanelLayout({
                 <span className="adv-card-title">Corner Stop</span>
                 <ToggleBtn
                   value={settings.cornerStopEnabled}
-                  onChange={(v) => update({ cornerStopEnabled: v })}
+                  onChange={(v) => {
+                    update({ cornerStopEnabled: v });
+                  }}
                 />
               </div>
               <CardDivider />
@@ -946,7 +920,9 @@ export default function AdvancedPanelLayout({
                         <div className={`adv-arc adv-arc-${c}`} />
                         <NumInput
                           value={settings[CORNER_KEYS[c]]}
-                          onChange={(v) => update({ [CORNER_KEYS[c]]: v })}
+                          onChange={(v) => {
+                            update({ [CORNER_KEYS[c]]: v });
+                          }}
                           min={0}
                           max={999}
                           style={{ width: "28px", textAlign: "right" }}
@@ -964,7 +940,9 @@ export default function AdvancedPanelLayout({
                 <span className="adv-card-title">Edge Stop</span>
                 <ToggleBtn
                   value={settings.edgeStopEnabled}
-                  onChange={(v) => update({ edgeStopEnabled: v })}
+                  onChange={(v) => {
+                    update({ edgeStopEnabled: v });
+                  }}
                 />
               </div>
               <CardDivider />
@@ -976,7 +954,9 @@ export default function AdvancedPanelLayout({
                         <div className={`adv-edge-bar adv-edge-bar-${e}`} />
                         <NumInput
                           value={settings[EDGE_KEYS[e]]}
-                          onChange={(v) => update({ [EDGE_KEYS[e]]: v })}
+                          onChange={(v) => {
+                            update({ [EDGE_KEYS[e]]: v });
+                          }}
                           min={0}
                           max={999}
                           style={{ width: "28px", textAlign: "right" }}

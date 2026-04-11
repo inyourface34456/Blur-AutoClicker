@@ -31,10 +31,16 @@ pub fn current_screen_size() -> Option<(i32, i32)> {
     let width = unsafe { GetSystemMetrics(SM_CXSCREEN) };
     let height = unsafe { GetSystemMetrics(SM_CYSCREEN) };
     if width <= 0 || height <= 0 {
-        None
-    } else {
-        Some((width, height))
+        return None;
     }
+    use windows_sys::Win32::UI::HiDpi::GetDpiForSystem;
+    let dpi = unsafe { GetDpiForSystem() };
+    let scale = dpi as f64 / 96.0;
+
+    Some((
+        (width as f64 / scale) as i32,
+        (height as f64 / scale) as i32,
+    ))
 }
 
 #[inline]
