@@ -1,7 +1,7 @@
-# Blur Auto Clicker
+# Blur Auto Clicker, The Offical linux port 
 
 <div align="center">
-    <img src="https://github.com/Blur009/Blur-AutoClicker/blob/main/public/V3.0.0_UI.png" width="600"/>
+    <img src="https://github.com/inyourface34456/Blur-AutoClicker/blob/main/public/V3.0.0_UI.png" width="600"/>
 </div>
 <p align="center"><em>An accuracy and performance focused auto clicker</em></p>
 
@@ -19,7 +19,7 @@ Performance is also a heavy focus of this. While version 3 and onwards run on a 
 ## Features
 
 <div align="center">
-    <img src="https://github.com/Blur009/Blur-AutoClicker/blob/main/public/30s_500cps_Speed_Test.png" width="600"/>
+    <img src="https://github.com/inyourface34456/Blur-AutoClicker/blob/main/public/30s_500cps_Speed_Test.png" width="600"/>
 </div>
 <p align="center"><em>Blur Auto Clicker reaching 500 CPS steadily (windows limit¹)</em></p>
 
