@@ -15,7 +15,7 @@ struct State {
 }
 
 impl Dispatch<wl_registry::WlRegistry, ()> for State {
-    fn event(state: &mut Self, registry: &wl_registry::WlRegistry, event: wl_registry::Event, _: &(), _: &Connection, qh: &QueueHandle<Self>) {
+    fn event(_state: &mut Self, registry: &wl_registry::WlRegistry, event: wl_registry::Event, _: &(), _: &Connection, qh: &QueueHandle<Self>) {
         if let wl_registry::Event::Global { name, interface, version } = event {
             if interface == "wl_output" {
                 registry.bind::<wl_output::WlOutput, _, _>(name, version.min(4), qh, ());

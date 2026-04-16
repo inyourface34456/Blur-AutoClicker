@@ -63,11 +63,8 @@ pub fn get_cursor_pos() -> (i32, i32) {
 
 #[inline]
 pub fn move_mouse(x: i32, y: i32) {
-    #[cfg(target_family = "windows")]
-    unsafe { SetCursorPos(x, y) };
-    #[cfg(target_family = "unix")]
     let mut mouse = Enigo::new(&Settings::default()).unwrap();
-    mouse.move_mouse(x, y, enigo::Coordinate::Abs);
+    let _ = mouse.move_mouse(x, y, enigo::Coordinate::Abs);
 }
 
 #[inline]
@@ -94,7 +91,7 @@ pub fn send_mouse_event(flags: u32) {
     let (button, direction) = make_input(flags, 0);
 
     let mut enigo = Enigo::new(&Settings::default()).unwrap();
-    enigo.button(button, direction);
+    let _ = enigo.button(button, direction);
 }
 
 pub fn send_batch(down: u32, up: u32, n: usize, _hold_ms: u32) {
@@ -104,8 +101,8 @@ pub fn send_batch(down: u32, up: u32, n: usize, _hold_ms: u32) {
     let (btn_up, dir_up) = make_input(up, 0);
 
     for _ in 0..n {
-        enigo.button(btn_down, dir_down);
-        enigo.button(btn_up, dir_up);
+        let _ = enigo.button(btn_down, dir_down);
+        let _ = enigo.button(btn_up, dir_up);
     }
 }
 

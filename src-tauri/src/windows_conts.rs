@@ -1,3 +1,4 @@
+#![allow(unused, non_camel_case_types)]
 pub const WCH_DEAD: u32 = 61441u32;
 pub const WCH_LGTR: u32 = 61442u32;
 pub const WCH_NONE: u32 = 61440u32;
@@ -8,7 +9,7 @@ pub const VK_XBUTTON2: VIRTUAL_KEY = 6u16;
 pub const VK_Y: VIRTUAL_KEY = 89u16;
 pub const VK_Z: VIRTUAL_KEY = 90u16;
 pub const VK_ZOOM: VIRTUAL_KEY = 251u16;
-pub const VK__none_: VIRTUAL_KEY = 255u16;
+pub const VK_NONE: VIRTUAL_KEY = 255u16;
 pub const VK_U: VIRTUAL_KEY = 85u16;
 pub const VK_UP: VIRTUAL_KEY = 38u16;
 pub const VK_V: VIRTUAL_KEY = 86u16;

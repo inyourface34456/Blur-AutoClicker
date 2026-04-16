@@ -8,23 +8,6 @@ static LAST_ZONE_SHOW: Mutex<Option<Instant>> = Mutex::new(None);
 pub static OVERLAY_THREAD_RUNNING: std::sync::atomic::AtomicBool =
     std::sync::atomic::AtomicBool::new(true);
 
-pub fn init_overlay(app: &AppHandle) -> Result<(), String> {
-    let window = app
-        .get_webview_window("overlay")
-        .ok_or_else(|| "Overlay window not found".to_string())?;
-
-    log::info!("[Overlay] Running one-time init...");
-
-    window
-        .set_ignore_cursor_events(true)
-        .map_err(|e| e.to_string())?;
-    let _ = window.set_fullscreen(true);
-    let _ = window.set_decorations(false);
-
-    log::info!("[Overlay] Init complete — window configured but hidden");
-    Ok(())
-}
-
 pub fn show_overlay(app: &AppHandle) -> Result<(), String> {
     let state = app.state::<ClickerState>();
     if !state.settings_initialized.load(Ordering::SeqCst) {
@@ -86,7 +69,7 @@ pub fn check_auto_hide(app: &AppHandle) {
             // ↑ auto-hide after timer
 
             *last = None;
-            if let Some(window) = app.get_webview_window("overlay") {
+            if let Some(_window) = app.get_webview_window("overlay") {
                 log::info!("[Overlay] Auto-hide: hiding window");
             }
         }

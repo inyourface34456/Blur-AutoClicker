@@ -1,6 +1,6 @@
 use crate::AppHandle;
 use crate::ClickerState;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 use tauri::Manager;
 use crate::windows_conts::*;
@@ -10,6 +10,14 @@ use crate::engine::worker::now_epoch_ms;
 use crate::engine::worker::start_clicker_inner;
 use crate::engine::worker::stop_clicker_inner;
 use crate::engine::worker::toggle_clicker_inner;
+
+static SCROLL_UP_AT: AtomicU64 = AtomicU64::new(0);
+static SCROLL_DOWN_AT: AtomicU64 = AtomicU64::new(0);
+
+pub const VK_SCROLL_UP_PSEUDO: i32 = -1;
+pub const VK_SCROLL_DOWN_PSEUDO: i32 = -2;
+
+const SCROLL_WINDOW_MS: u64 = 200;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct HotkeyBinding {
@@ -93,6 +101,26 @@ pub fn parse_hotkey_main_key(token: &str, original_hotkey: &str) -> Result<(i32,
     let lower = token.trim().to_lowercase();
 
     let mapped = match lower.as_str() {
+        // ── Mouse buttons ──────────────────────────────────────────
+        "mouseleft" | "mouse1" => Some((VK_LBUTTON as i32, String::from("mouseleft"))),
+        "mouseright" | "mouse2" => Some((VK_RBUTTON as i32, String::from("mouseright"))),
+        "mousemiddle" | "mouse3" | "scrollbutton" | "middleclick" => {
+            Some((VK_MBUTTON as i32, String::from("mousemiddle")))
+        }
+        "mouse4" | "mouseback" | "xbutton1" => {
+            Some((VK_XBUTTON1 as i32, String::from("mouse4")))
+        }
+        "mouse5" | "mouseforward" | "xbutton2" => {
+            Some((VK_XBUTTON2 as i32, String::from("mouse5")))
+        }
+        // // ── Scroll wheel (pseudo-VKs) ──────────────────────────────
+        // "scrollup" | "wheelup" => {
+        //     Some((VK_SCROLL_UP_PSEUDO, String::from("scrollup")))
+        // }
+        // "scrolldown" | "wheeldown" => {
+        //     Some((VK_SCROLL_DOWN_PSEUDO, String::from("scrolldown")))
+        // }
+        // ── Keyboard keys (original) ───────────────────────────────
         "<" | ">" | "intlbackslash" | "oem102" | "nonusbackslash" => {
             Some((VK_OEM_102 as i32, String::from("IntlBackslash")))
         }
@@ -296,7 +324,29 @@ pub fn is_hotkey_binding_pressed(binding: &HotkeyBinding) -> bool {
         return false;
     }
 
-    is_vk_down(binding.main_vk)
+    is_main_key_active(binding.main_vk)
+}
+
+fn is_main_key_active(vk: i32) -> bool {
+    match vk {
+        VK_SCROLL_UP_PSEUDO => {
+            let ts = SCROLL_UP_AT.load(Ordering::SeqCst);
+            if ts == 0 {
+                return false;
+            }
+            let now = now_epoch_ms();
+            now.saturating_sub(ts) < SCROLL_WINDOW_MS
+        }
+        VK_SCROLL_DOWN_PSEUDO => {
+            let ts = SCROLL_DOWN_AT.load(Ordering::SeqCst);
+            if ts == 0 {
+                return false;
+            }
+            let now = now_epoch_ms();
+            now.saturating_sub(ts) < SCROLL_WINDOW_MS
+        }
+        _ => is_vk_down(vk),
+    }
 }
 
 pub fn is_vk_down(vk: i32) -> bool {
@@ -304,6 +354,14 @@ pub fn is_vk_down(vk: i32) -> bool {
         static DEVICE: DeviceState = DeviceState::new();
     }
 
+    // Mouse buttons use get_mouse() instead of get_keys()
+    if let Some(btn) = vk_to_mouse_button(vk) {
+        return DEVICE.with(|state| {
+            let mouse = state.get_mouse();
+            mouse.button_pressed.get(btn).copied().unwrap_or(false)
+        });
+    }
+    
     let keycodes = vk_to_keycodes(vk);
     if keycodes.is_empty() {
         return false;
@@ -312,6 +370,18 @@ pub fn is_vk_down(vk: i32) -> bool {
         let keys = state.get_keys();
         keycodes.iter().any(|k| keys.contains(k))
     })
+}
+
+#[cfg(target_family = "unix")]
+fn vk_to_mouse_button(vk: i32) -> Option<usize> {
+    match vk as u16 {
+        VK_LBUTTON => Some(1),  // X11 button 1 = left
+        VK_MBUTTON => Some(2),  // X11 button 2 = middle
+        VK_RBUTTON => Some(3),  // X11 button 3 = right
+        VK_XBUTTON1 => Some(8),
+        VK_XBUTTON2 => Some(9),
+        _ => None,
+    }
 }
 
 #[cfg(target_family = "unix")]
@@ -421,4 +491,74 @@ fn vk_to_keycodes(vk: i32) -> &'static [device_query::Keycode] {
         VK_OEM_PLUS => &[K::Equal],
         _ => &[],
     }
+}
+
+// ─── Scroll wheel detection via XInput2 raw events ─────────────────────────
+
+/// Must be called once at startup (from `lib.rs` setup).  Spawns a thread that
+/// listens for XInput2 RawButtonPress events on the root window to detect
+/// scroll wheel activity (X11 buttons 4 = up, 5 = down).
+#[cfg(target_family = "unix")]
+pub fn start_scroll_hook() {
+    std::thread::spawn(|| {
+        use x11rb::connection::Connection;
+        use x11rb::protocol::xinput::{self, EventMask, XIEventMask, Device};
+        use x11rb::protocol::Event;
+        use x11rb::rust_connection::RustConnection;
+
+        let (conn, screen_num) = match RustConnection::connect(None) {
+            Ok(c) => c,
+            Err(e) => {
+                log::error!("[Hotkeys] Failed to connect to X11 for scroll hook: {e}");
+                return;
+            }
+        };
+        let root = conn.setup().roots[screen_num].root;
+
+        // Negotiate XInput2 (version 2.2+)
+        match xinput::xi_query_version(&conn, 2, 2) {
+            Ok(cookie) => {
+                if let Err(e) = cookie.reply() {
+                    log::error!("[Hotkeys] XInput2 version query failed: {e}");
+                    return;
+                }
+            }
+            Err(e) => {
+                log::error!("[Hotkeys] XInput2 not available: {e}");
+                return;
+            }
+        }
+
+        // Select RawButtonPress events from all master devices on the root window
+        let mask = EventMask {
+            deviceid: Device::ALL_MASTER.into(),
+            mask: vec![XIEventMask::RAW_BUTTON_PRESS],
+        };
+        if let Err(e) = xinput::xi_select_events(&conn, root, &[mask]) {
+            log::error!("[Hotkeys] Failed to select XI events: {e}");
+            return;
+        }
+        if let Err(e) = conn.flush() {
+            log::error!("[Hotkeys] Failed to flush X11 connection: {e}");
+            return;
+        }
+
+        loop {
+            match conn.wait_for_event() {
+                Ok(Event::XinputRawButtonPress(ev)) => {
+                    let now = now_epoch_ms();
+                    match ev.detail {
+                        4 => SCROLL_UP_AT.store(now, Ordering::SeqCst),
+                        5 => SCROLL_DOWN_AT.store(now, Ordering::SeqCst),
+                        _ => {}
+                    }
+                }
+                Ok(_) => {}
+                Err(e) => {
+                    log::error!("[Hotkeys] X11 scroll event error: {e}");
+                    break;
+                }
+            }
+        }
+    });
 }

@@ -1,0 +1,68 @@
+.update-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  min-height: 30px;
+  padding: 4px 12px;
+  background: var(--update-banner-bg);
+  flex-shrink: 0;
+}
+
+.update-banner-text {
+  font-family: 'DMSans', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--update-banner-text-bg);
+}
+.update-banner-text-new-version {
+  font-family: 'DMSans', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--update-banner-text-fg);
+}
+.update-banner-text-old-version {
+  font-family: 'DMSans', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--update-banner-text-fg);
+}
+
+.update-banner-btn {
+  font-family: 'DMSans', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--update-banner-text-bg);
+  background: transparent;
+  border: 1px solid rgba(254, 188, 46, 0.4);
+  border-radius: var(--radius-sm);
+  padding: 2px 10px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.update-banner-btn:hover {
+  background: rgba(156, 121, 45, 0.15);
+  border-color: var(--accent-yellow);
+}
+
+.update-banner-btn:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.update-banner-status {
+  font-family: 'DMSans', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.update-banner-status[data-stage="error"] {
+  color: var(--color-red-400);
+}
+
+.update-banner-status[data-stage="restart-required"] {
+  color: var(--color-lime-500);
+}
