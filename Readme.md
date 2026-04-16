@@ -4,7 +4,7 @@
     <img src="https://github.com/inyourface34456/Blur-AutoClicker/blob/main/public/V3.0.0_UI.png" width="600"/>
 </div>
 <p align="center"><em>An accuracy and performance focused auto clicker</em></p>
-
+test
 
 ## Why i made it
 
