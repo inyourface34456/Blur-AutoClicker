@@ -2,7 +2,6 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
 import { lazy, useEffect, useRef, useState } from "react";
-import UpdateBanner from "./components/Updatebanner";
 import { canonicalizeHotkeyForBackend } from "./hotkeys";
 import {
   APP_VERSION,
@@ -27,13 +26,12 @@ export type Tab = "simple" | "advanced" | "settings";
 
 const BACKEND_SETTINGS_SCHEMA_VERSION = 5;
 
-function getPanelSize(tab: Tab, settings: Settings, hasUpdate: boolean) {
-  const extra = hasUpdate ? 30 : 0;
-  if (tab === "settings") return { width: 500, height: 600 + extra };
-  if (tab === "simple") return { width: 550, height: 175 + extra };
+function getPanelSize(tab: Tab, settings: Settings) {
+  if (tab === "settings") return { width: 500, height: 600 };
+  if (tab === "simple") return { width: 550, height: 175 };
   return settings.explanationMode === "off"
-    ? { width: 600, height: 600 + extra }
-    : { width: 800, height: 650 + extra };
+    ? { width: 600, height: 600 }
+    : { width: 800, height: 650 };
 }
 
 const DEFAULT_STATUS: ClickerStatus = {
@@ -73,11 +71,6 @@ export default function App() {
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [status, setStatus] = useState<ClickerStatus>(DEFAULT_STATUS);
   const [appInfo, setAppInfo] = useState<AppInfo>(DEFAULT_APP_INFO);
-  const [updateInfo, setUpdateInfo] = useState<{
-    currentVersion: string;
-    latestVersion: string;
-  } | null>(null);
-
   const hotkeyTimer = useRef<number | null>(null);
   const hotkeyRequestIdRef = useRef(0);
   const uiSettingsRef = useRef<Settings>(DEFAULT_SETTINGS);
@@ -284,7 +277,7 @@ export default function App() {
       resizeTimeout.current = null;
     }
 
-    const { width, height } = getPanelSize(tab, settings, !!updateInfo);
+    const { width, height } = getPanelSize(tab, settings);
     const root = document.querySelector(".app-root") as HTMLElement;
 
     void (async () => {
@@ -335,30 +328,7 @@ export default function App() {
         console.error("Failed to size window:", err);
       }
     })();
-  }, [settings, settingsLoaded, tab, updateInfo]);
-
-  useEffect(() => {
-    const checkForUpdates = () => {
-      invoke<{
-        currentVersion: string;
-        latestVersion: string;
-        updateAvailable: boolean;
-      }>("check_for_updates")
-        .then((result) => {
-          if (result?.updateAvailable) {
-            setUpdateInfo({
-              currentVersion: result.currentVersion,
-              latestVersion: result.latestVersion,
-            });
-          }
-        })
-        .catch((err) => console.error("Update check failed:", err));
-    };
-
-    checkForUpdates();
-    const interval = setInterval(checkForUpdates, 60 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, []);
+  }, [settings, settingsLoaded, tab]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = settings.theme ?? "dark";
@@ -424,13 +394,6 @@ export default function App() {
         }
         onRequestClose={handleWindowClose}
       />
-      {updateInfo && (
-        <UpdateBanner
-          key={`${updateInfo.currentVersion}:${updateInfo.latestVersion}`}
-          currentVersion={updateInfo.currentVersion}
-          latestVersion={updateInfo.latestVersion}
-        />
-      )}
       <main className="panel-area">
         {tab === "simple" && (
           <SimplePanel settings={settings} update={updateSettings} />
