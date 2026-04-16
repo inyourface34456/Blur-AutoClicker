@@ -8,15 +8,6 @@ static LAST_ZONE_SHOW: Mutex<Option<Instant>> = Mutex::new(None);
 pub static OVERLAY_THREAD_RUNNING: std::sync::atomic::AtomicBool =
     std::sync::atomic::AtomicBool::new(true);
 
-#[cfg(target_os = "windows")]
-use windows_sys::Win32::UI::WindowsAndMessaging::{
-    GetWindowLongW, SetWindowLongW, SetWindowPos, ShowWindow, GWL_EXSTYLE, GWL_STYLE,
-    SWP_FRAMECHANGED, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER,
-};
-
-#[cfg(target_os = "windows")]
-use windows_sys::Win32::Graphics::Dwm::{DwmSetWindowAttribute, DWMNCRP_DISABLED};
-
 pub fn init_overlay(app: &AppHandle) -> Result<(), String> {
     let window = app
         .get_webview_window("overlay")
@@ -29,9 +20,6 @@ pub fn init_overlay(app: &AppHandle) -> Result<(), String> {
         .map_err(|e| e.to_string())?;
     let _ = window.set_fullscreen(true);
     let _ = window.set_decorations(false);
-
-    #[cfg(target_os = "windows")]
-    apply_win32_styles(&window)?;
 
     log::info!("[Overlay] Init complete — window configured but hidden");
     Ok(())
@@ -52,15 +40,6 @@ pub fn show_overlay(app: &AppHandle) -> Result<(), String> {
     let window = app
         .get_webview_window("overlay")
         .ok_or_else(|| "Overlay window not found".to_string())?;
-
-    #[cfg(target_os = "windows")]
-    {
-        let visible = window.is_visible().unwrap_or(false);
-        if !visible {
-            let hwnd = get_hwnd(&window)?;
-            unsafe { ShowWindow(hwnd, 4) };
-        }
-    }
 
     *LAST_ZONE_SHOW.lock().unwrap() = Some(Instant::now());
 
@@ -109,12 +88,6 @@ pub fn check_auto_hide(app: &AppHandle) {
             *last = None;
             if let Some(window) = app.get_webview_window("overlay") {
                 log::info!("[Overlay] Auto-hide: hiding window");
-                #[cfg(target_os = "windows")]
-                {
-                    if let Ok(hwnd) = get_hwnd(&window) {
-                        unsafe { ShowWindow(hwnd, 0) };
-                    }
-                }
             }
         }
     }
@@ -133,51 +106,5 @@ pub fn hide_overlay(app: AppHandle) -> Result<(), String> {
         #[cfg(not(target_os = "windows"))]
         let _ = window.hide();
     }
-    Ok(())
-}
-
-#[cfg(target_os = "windows")]
-fn get_hwnd(window: &tauri::WebviewWindow) -> Result<isize, String> {
-    use raw_window_handle::{HasWindowHandle, RawWindowHandle};
-    let handle = window.window_handle().map_err(|e| e.to_string())?;
-    match handle.as_raw() {
-        RawWindowHandle::Win32(w) => Ok(w.hwnd.get()),
-        _ => Err("Not a Win32 window".to_string()),
-    }
-}
-
-#[cfg(target_os = "windows")]
-fn apply_win32_styles(window: &tauri::WebviewWindow) -> Result<(), String> {
-    let hwnd = get_hwnd(window)?;
-
-    unsafe {
-        let style = GetWindowLongW(hwnd, GWL_STYLE);
-        SetWindowLongW(hwnd, GWL_STYLE, ((style as u32) | 0x8000_0000) as i32);
-
-        let ex = GetWindowLongW(hwnd, GWL_EXSTYLE);
-        let new_ex =
-            ((ex as u32) | 0x0800_0000 | 0x0000_0080 | 0x0000_0020 | 0x0000_0008) & !0x0004_0000;
-        SetWindowLongW(hwnd, GWL_EXSTYLE, new_ex as i32);
-
-        let policy = DWMNCRP_DISABLED;
-        DwmSetWindowAttribute(
-            hwnd,
-            2,
-            &policy as *const i32 as *const _,
-            std::mem::size_of::<i32>() as u32,
-        );
-
-        SetWindowPos(
-            hwnd,
-            0,
-            0,
-            0,
-            0,
-            0,
-            SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER,
-        );
-    }
-
-    log::info!("[Overlay] Win32 styles applied");
     Ok(())
 }

@@ -47,9 +47,7 @@ Other Features:
 
 1. download from releases  
 2. run the installer
-3. run the program (default location is `%localappdata%/BlurAutoClicker/BlurAutoClicker.exe`)
-
-config and stats are stored in `%appdata%/BlurAutoClicker`
+3. run the program
 
 Info: If you are on version 2.1.2 or below, delete the old executable (the installer will not delete it for you).
 The old Config and Stats files will unfortunately not be compatible with the new versions (3.0.0 and above), so they will be deleted upon launching the application.

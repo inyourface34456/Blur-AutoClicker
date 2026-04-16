@@ -3,12 +3,7 @@ use crate::ClickerState;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 use tauri::Manager;
-#[cfg(target_family = "windows")]
-use windows_sys::Win32::UI::Input::KeyboardAndMouse::*;
-
-#[cfg(target_family = "unix")]
 use crate::windows_conts::*;
-#[cfg(target_family = "unix")]
 use device_query::{DeviceQuery, DeviceState};
 
 use crate::engine::worker::now_epoch_ms;
@@ -304,12 +299,6 @@ pub fn is_hotkey_binding_pressed(binding: &HotkeyBinding) -> bool {
     is_vk_down(binding.main_vk)
 }
 
-#[cfg(target_family = "windows")]
-pub fn is_vk_down(vk: i32) -> bool {
-    unsafe { (GetAsyncKeyState(vk) as u16 & 0x8000) != 0 }
-}
-
-#[cfg(target_family = "unix")]
 pub fn is_vk_down(vk: i32) -> bool {
     thread_local! {
         static DEVICE: DeviceState = DeviceState::new();

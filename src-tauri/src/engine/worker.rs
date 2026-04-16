@@ -23,27 +23,7 @@ use super::CLICK_COUNT;
 
 // -- CPU measurement --
 // changed from normal cpu measurement because it was not accurately
-// showing cpu usage for short clicker run times.
-#[cfg(target_family = "windows")]
-windows_targets::link!(
-    "kernel32.dll" "system" fn QueryThreadCycleTime(thread: *mut core::ffi::c_void, cycles: *mut u64) -> i32
-);
-#[cfg(target_family = "windows")]
-windows_targets::link!(
-    "kernel32.dll" "system" fn GetCurrentThread() -> *mut core::ffi::c_void
-);
-
-#[cfg(target_family = "windows")]
-#[inline]
-fn thread_cycles() -> u64 {
-    let mut cycles: u64 = 0;
-    unsafe {
-        QueryThreadCycleTime(GetCurrentThread(), &mut cycles);
-    }
-    cycles
-}
-
-#[cfg(all(target_arch = "x86_64", target_family = "unix"))]
+// showing cpu usage for short clicker run times.#[cfg(all(target_arch = "x86_64"))]
 #[inline]
 pub fn thread_cycles() -> u64 {
     unsafe {
@@ -238,13 +218,6 @@ pub fn now_epoch_ms() -> u64 {
 
 pub fn start_clicker(config: ClickerConfig, running: Arc<AtomicBool>) -> RunOutcome {
     CLICK_COUNT.store(0, Ordering::SeqCst);
-
-    #[cfg(target_family = "windows")]
-    let mut current = {
-        let mut c = 0;
-        unsafe { NtSetTimerResolution(10000, 1, &mut c) };
-        c
-    };
 
     let cycle_freq = calibrate_cycle_freq();
     let cpu_cycles_start = thread_cycles();

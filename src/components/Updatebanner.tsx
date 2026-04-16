@@ -1,4 +1,4 @@
-import { check } from "@tauri-apps/plugin-updater";
+import { open } from "@tauri-apps/plugin-shell";
 import "./UpdateBanner.css";
 
 interface UpdateBannerProps {
@@ -11,19 +11,7 @@ export default function UpdateBanner({
   latestVersion,
 }: UpdateBannerProps) {
   const handleUpdate = async () => {
-    const update = await check();
-    if (update) {
-      await update.downloadAndInstall((event) => {
-        switch (event.event) {
-          case "Started":
-            break;
-          case "Progress":
-            break;
-          case "Finished":
-            break;
-        }
-      });
-    }
+    await open("https://github.com/inyourface34456/Blur-AutoClicker/releases/latest");
   };
 
   return (
@@ -32,7 +20,7 @@ export default function UpdateBanner({
       <span className="update-banner-text">→</span>
       <span className="update-banner-text-new-version">{latestVersion}</span>
       <button className="update-banner-btn" onClick={handleUpdate}>
-        Download & Install Update
+        View Update
       </button>
     </div>
   );

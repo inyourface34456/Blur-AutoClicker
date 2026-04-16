@@ -26,8 +26,6 @@ dependencies = [
  "tauri-plugin-updater",
  "tokio",
  "wayland-client",
- "windows-sys 0.52.0",
- "windows-targets 0.48.5",
  "x11rb",
 ]
 
