@@ -16,8 +16,6 @@ use super::failsafe::should_stop_for_failsafe;
 use super::mouse::{get_button_flags, get_cursor_pos, move_mouse, send_clicks, smooth_move};
 use super::rng::SmallRng;
 use super::ClickerConfig;
-#[cfg(target_family = "windows")]
-use super::NtSetTimerResolution;
 use super::RunOutcome;
 use super::CLICK_COUNT;
 
@@ -340,8 +338,6 @@ pub fn start_clicker(config: ClickerConfig, running: Arc<AtomicBool>) -> RunOutc
     }
 
     running.store(false, Ordering::SeqCst);
-    #[cfg(target_family = "windows")]
-    unsafe { NtSetTimerResolution(10000, 0, &mut current) };
 
     let elapsed_secs = start_time.elapsed().as_secs_f64();
     let cpu_cycles_end = thread_cycles();
