@@ -221,15 +221,16 @@ pub fn start_hotkey_listener(app: AppHandle) {
         let mut was_pressed = false;
 
         loop {
-            let binding = {
+            let (binding, strict) = {
                 let state = app.state::<ClickerState>();
                 let binding = state.registered_hotkey.lock().unwrap().clone();
-                binding
+                let strict = state.settings.lock().unwrap().strict_hotkey_modifiers;
+                (binding, strict)
             };
 
             let currently_pressed = binding
                 .as_ref()
-                .map(is_hotkey_binding_pressed)
+                .map(|b| is_hotkey_binding_pressed(b, strict))
                 .unwrap_or(false);
 
             let suppress_until = app
@@ -310,7 +311,7 @@ pub fn handle_hotkey_released(app: &AppHandle) {
     }
 }
 
-pub fn is_hotkey_binding_pressed(binding: &HotkeyBinding) -> bool {
+pub fn is_hotkey_binding_pressed(binding: &HotkeyBinding, strict: bool) -> bool {
     let ctrl_down = is_vk_down(VK_CONTROL as i32);
     let alt_down = is_vk_down(VK_MENU as i32);
     let shift_down = is_vk_down(VK_SHIFT as i32);
@@ -320,6 +321,7 @@ pub fn is_hotkey_binding_pressed(binding: &HotkeyBinding) -> bool {
         || alt_down != binding.alt
         || shift_down != binding.shift
         || super_down != binding.super_key
+        || strict
     {
         return false;
     }

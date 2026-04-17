@@ -47,6 +47,7 @@ export interface Settings {
   showStopReason: boolean;
   showStopOverlay: boolean;
   theme: Theme;
+  strictHotkeyModifiers: boolean;
 }
 
 export interface ClickerStatus {
@@ -100,6 +101,7 @@ export const DEFAULT_SETTINGS: Settings = {
   showStopReason: true,
   showStopOverlay: true,
   theme: "dark",
+  strictHotkeyModifiers: true,
 };
 
 function sanitizeSavedPanel(value: unknown): SavedPanel {
