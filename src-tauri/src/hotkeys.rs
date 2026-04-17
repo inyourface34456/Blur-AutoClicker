@@ -317,11 +317,10 @@ pub fn is_hotkey_binding_pressed(binding: &HotkeyBinding, strict: bool) -> bool 
     let shift_down = is_vk_down(VK_SHIFT as i32);
     let super_down = is_vk_down(VK_LWIN as i32) || is_vk_down(VK_RWIN as i32);
 
-    if ctrl_down != binding.ctrl
+    if strict && (ctrl_down != binding.ctrl
         || alt_down != binding.alt
         || shift_down != binding.shift
-        || super_down != binding.super_key
-        || strict
+        || super_down != binding.super_key)
     {
         return false;
     }
