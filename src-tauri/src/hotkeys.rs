@@ -1,10 +1,14 @@
 use crate::AppHandle;
 use crate::ClickerState;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex, Once};
+use std::collections::HashSet;
 use std::time::Duration;
+use std::thread;
 use tauri::Manager;
 use crate::windows_conts::*;
 use device_query::{DeviceQuery, DeviceState};
+use rdev::{listen, Button, EventType};
 
 use crate::engine::worker::now_epoch_ms;
 use crate::engine::worker::start_clicker_inner;
@@ -113,13 +117,13 @@ pub fn parse_hotkey_main_key(token: &str, original_hotkey: &str) -> Result<(i32,
         "mouse5" | "mouseforward" | "xbutton2" => {
             Some((VK_XBUTTON2 as i32, String::from("mouse5")))
         }
-        // // ── Scroll wheel (pseudo-VKs) ──────────────────────────────
-        // "scrollup" | "wheelup" => {
-        //     Some((VK_SCROLL_UP_PSEUDO, String::from("scrollup")))
-        // }
-        // "scrolldown" | "wheeldown" => {
-        //     Some((VK_SCROLL_DOWN_PSEUDO, String::from("scrolldown")))
-        // }
+        // ── Scroll wheel (pseudo-VKs) ──────────────────────────────
+        "scrollup" | "wheelup" => {
+            Some((VK_SCROLL_UP_PSEUDO, String::from("scrollup")))
+        }
+        "scrolldown" | "wheeldown" => {
+            Some((VK_SCROLL_DOWN_PSEUDO, String::from("scrolldown")))
+        }
         // ── Keyboard keys (original) ───────────────────────────────
         "<" | ">" | "intlbackslash" | "oem102" | "nonusbackslash" => {
             Some((VK_OEM_102 as i32, String::from("IntlBackslash")))
@@ -353,27 +357,65 @@ fn is_main_key_active(vk: i32) -> bool {
 pub fn is_vk_down(vk: i32) -> bool {
     thread_local! {
         static DEVICE: DeviceState = DeviceState::new();
+        static PRESSED: Arc<Mutex<HashSet<Button>>> = Arc::new(Mutex::new(HashSet::new()));
+        static MOUSE_BUTTON_POLL_THREAD: Once = Once::new();
     }
 
-    // Mouse buttons use get_mouse() instead of get_keys()
-    if let Some(btn) = vk_to_mouse_button(vk) {
-        return DEVICE.with(|state| {
-            let mouse = state.get_mouse();
-            mouse.button_pressed.get(btn).copied().unwrap_or(false)
+    MOUSE_BUTTON_POLL_THREAD.with(|poll| {
+        poll.call_once(|| {
+        let pressed_clone: Arc<Mutex<HashSet<Button>>> = PRESSED.with(|refrence| refrence.clone());
+        thread::spawn(move || {
+            listen(move |event| {
+                let mut state = pressed_clone.lock().unwrap();
+                match event.event_type {
+                    EventType::ButtonPress(b) => { state.insert(b); }
+                    EventType::ButtonRelease(b) => { state.remove(&b); }
+                    EventType::Wheel { delta_x: y, delta_y: x } => {
+                        // println!("wheel event recived");
+                        if x == 0 && y == 0 {
+                            state.remove(&Button::Unknown(99));
+                        } else {
+                            state.insert(Button::Unknown(99));
+                        }
+                    }
+                    _ => { }
+                }
+            }).unwrap();
         });
-    }
+    });
+    });
     
-    let keycodes = vk_to_keycodes(vk);
-    if keycodes.is_empty() {
-        return false;
+    if let Some(m_button) = vk_to_mouse_button(vk) {
+        PRESSED.with(|state| {
+            let state = state.lock().unwrap();
+            if m_button == 1 && state.contains(&Button::Left) {
+                true
+            } else if m_button == 2 && state.contains(&Button::Middle) {
+                true
+            } else if m_button == 3 && state.contains(&Button::Right) {
+                true
+            } else if m_button == 8 && state.contains(&Button::Unknown(8)) {
+                true
+            } else if m_button == 9 && state.contains(&Button::Unknown(9)) {
+                true
+            } else {
+                // println!("{:?}", state);
+                false
+            }
+        })
+    } else {
+        let keycodes = vk_to_keycodes(vk);
+        if keycodes.is_empty() {
+            return false;
+        }
+        
+        DEVICE.with(|state| {
+            let keys = state.get_keys();
+            keycodes.iter().any(|k| keys.contains(k))
+        })
     }
-    DEVICE.with(|state| {
-        let keys = state.get_keys();
-        keycodes.iter().any(|k| keys.contains(k))
-    })
 }
 
-#[cfg(target_family = "unix")]
 fn vk_to_mouse_button(vk: i32) -> Option<usize> {
     match vk as u16 {
         VK_LBUTTON => Some(1),  // X11 button 1 = left

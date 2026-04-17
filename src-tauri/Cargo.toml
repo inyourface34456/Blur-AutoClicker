@@ -34,3 +34,4 @@ device_query = "4.0.1"
 enigo = "0.3.0"
 x11rb = { version = "0.13", features = ["xinput"] }
 wayland-client = "0.31"
+rdev = "0.5.3"
