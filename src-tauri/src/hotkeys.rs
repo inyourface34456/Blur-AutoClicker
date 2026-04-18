@@ -5,9 +5,9 @@ use std::sync::{Arc, Mutex, Once};
 use std::collections::HashSet;
 use std::time::Duration;
 use std::thread;
+use rdev::Key;
 use tauri::Manager;
 use crate::windows_conts::*;
-use device_query::{DeviceQuery, DeviceState};
 use rdev::{listen, Button, EventType};
 
 use crate::engine::worker::now_epoch_ms;
@@ -356,47 +356,43 @@ fn is_main_key_active(vk: i32) -> bool {
 
 pub fn is_vk_down(vk: i32) -> bool {
     thread_local! {
-        static DEVICE: DeviceState = DeviceState::new();
-        static PRESSED: Arc<Mutex<HashSet<Button>>> = Arc::new(Mutex::new(HashSet::new()));
+        static MOUSE_PRESSED: Arc<Mutex<HashSet<Button>>> = Arc::new(Mutex::new(HashSet::new()));
+        static KEY_PRESSED: Arc<Mutex<HashSet<rdev::Key>>> = Arc::new(Mutex::new(HashSet::new()));
         static MOUSE_BUTTON_POLL_THREAD: Once = Once::new();
     }
 
     MOUSE_BUTTON_POLL_THREAD.with(|poll| {
         poll.call_once(|| {
-        let pressed_clone: Arc<Mutex<HashSet<Button>>> = PRESSED.with(|refrence| refrence.clone());
-        thread::spawn(move || {
-            listen(move |event| {
-                let mut state = pressed_clone.lock().unwrap();
-                match event.event_type {
-                    EventType::ButtonPress(b) => { state.insert(b); }
-                    EventType::ButtonRelease(b) => { state.remove(&b); }
-                    EventType::Wheel { delta_x: y, delta_y: x } => {
-                        // println!("wheel event recived");
-                        if x == 0 && y == 0 {
-                            state.remove(&Button::Unknown(99));
-                        } else {
-                            state.insert(Button::Unknown(99));
+            let pressed_clone: Arc<Mutex<HashSet<Button>>> = MOUSE_PRESSED.with(|refrence| refrence.clone());
+            let key_clone: Arc<Mutex<HashSet<Key>>> = KEY_PRESSED.with(|refrence| refrence.clone());
+            thread::spawn(move || {
+                listen(move |event| {
+                    let mut mouse_state = pressed_clone.lock().unwrap();
+                    let mut key_state = key_clone.lock().unwrap();
+                    match event.event_type {
+                        EventType::ButtonPress(b) => { mouse_state.insert(b); }
+                        EventType::ButtonRelease(b) => { mouse_state.remove(&b); }
+                        EventType::Wheel { delta_x: y, delta_y: x } => {
+                            // println!("wheel event recived");
+                            if x == 0 && y == 0 {
+                                mouse_state.remove(&Button::Unknown(99));
+                            } else {
+                                mouse_state.insert(Button::Unknown(99));
+                            }
                         }
+                        EventType::KeyPress(key) => { key_state.insert(key); }
+                        EventType::KeyRelease(key) => { key_state.remove(&key); }
+                        _ => { }
                     }
-                    _ => { }
-                }
-            }).unwrap();
+                }).unwrap();
+            });
         });
-    });
     });
     
     if let Some(m_button) = vk_to_mouse_button(vk) {
-        PRESSED.with(|state| {
+        MOUSE_PRESSED.with(|state| {
             let state = state.lock().unwrap();
-            if m_button == 1 && state.contains(&Button::Left) {
-                true
-            } else if m_button == 2 && state.contains(&Button::Middle) {
-                true
-            } else if m_button == 3 && state.contains(&Button::Right) {
-                true
-            } else if m_button == 8 && state.contains(&Button::Unknown(8)) {
-                true
-            } else if m_button == 9 && state.contains(&Button::Unknown(9)) {
+            if state.contains(&m_button) {
                 true
             } else {
                 // println!("{:?}", state);
@@ -409,80 +405,79 @@ pub fn is_vk_down(vk: i32) -> bool {
             return false;
         }
         
-        DEVICE.with(|state| {
-            let keys = state.get_keys();
+        KEY_PRESSED.with(|state| {
+            let keys = state.lock().unwrap();
             keycodes.iter().any(|k| keys.contains(k))
         })
     }
 }
 
-fn vk_to_mouse_button(vk: i32) -> Option<usize> {
+fn vk_to_mouse_button(vk: i32) -> Option<Button> {
     match vk as u16 {
-        VK_LBUTTON => Some(1),  // X11 button 1 = left
-        VK_MBUTTON => Some(2),  // X11 button 2 = middle
-        VK_RBUTTON => Some(3),  // X11 button 3 = right
-        VK_XBUTTON1 => Some(8),
-        VK_XBUTTON2 => Some(9),
+        VK_LBUTTON => Some(Button::Left),  // X11 button 1 = left
+        VK_MBUTTON => Some(Button::Middle),  // X11 button 2 = middle
+        VK_RBUTTON => Some(Button::Right),  // X11 button 3 = right
+        VK_XBUTTON1 => Some(Button::Unknown(8)),
+        VK_XBUTTON2 => Some(Button::Unknown(9)),
         _ => None,
     }
 }
 
-#[cfg(target_family = "unix")]
-fn vk_to_keycodes(vk: i32) -> &'static [device_query::Keycode] {
-    use device_query::Keycode as K;
+fn vk_to_keycodes(vk: i32) -> &'static [rdev::Key] {
+    use rdev::Key as K;
     match vk as u16 {
         // Generic modifiers (either side)
-        VK_CONTROL => &[K::LControl, K::RControl],
-        VK_MENU => &[K::LAlt, K::RAlt],
-        VK_SHIFT => &[K::LShift, K::RShift],
+        VK_CONTROL => &[K::ControlLeft, K::ControlRight],
+        VK_MENU => &[K::Alt, K::AltGr],
+        VK_SHIFT => &[K::ShiftLeft, K::ShiftRight],
         // Specific modifiers
-        VK_LCONTROL => &[K::LControl],
-        VK_RCONTROL => &[K::RControl],
-        VK_LSHIFT => &[K::LShift],
-        VK_RSHIFT => &[K::RShift],
-        VK_LMENU => &[K::LAlt],
-        VK_RMENU => &[K::RAlt],
-        VK_LWIN => &[K::LMeta],
-        VK_RWIN => &[K::RMeta],
+        VK_LCONTROL => &[K::ControlLeft],
+        VK_RCONTROL => &[K::ControlRight],
+        VK_LSHIFT => &[K::ShiftLeft],
+        VK_RSHIFT => &[K::ShiftRight],
+        VK_LMENU => &[K::Alt],
+        VK_RMENU => &[K::Alt, K::AltGr],
+        VK_LWIN => &[K::MetaLeft],
+        VK_RWIN => &[K::MetaRight],
         // Letters A-Z (VK 0x41-0x5A)
-        0x41 => &[K::A],
-        0x42 => &[K::B],
-        0x43 => &[K::C],
-        0x44 => &[K::D],
-        0x45 => &[K::E],
-        0x46 => &[K::F],
-        0x47 => &[K::G],
-        0x48 => &[K::H],
-        0x49 => &[K::I],
-        0x4A => &[K::J],
-        0x4B => &[K::K],
-        0x4C => &[K::L],
-        0x4D => &[K::M],
-        0x4E => &[K::N],
-        0x4F => &[K::O],
-        0x50 => &[K::P],
-        0x51 => &[K::Q],
-        0x52 => &[K::R],
-        0x53 => &[K::S],
-        0x54 => &[K::T],
-        0x55 => &[K::U],
-        0x56 => &[K::V],
-        0x57 => &[K::W],
-        0x58 => &[K::X],
-        0x59 => &[K::Y],
-        0x5A => &[K::Z],
+        0x41 => &[K::KeyA],
+        0x42 => &[K::KeyB],
+        0x43 => &[K::KeyC],
+        0x44 => &[K::KeyD],
+        0x45 => &[K::KeyE],
+        0x46 => &[K::KeyF],
+        0x47 => &[K::KeyG],
+        0x48 => &[K::KeyH],
+        0x49 => &[K::KeyI],
+        0x4A => &[K::KeyJ],
+        0x4B => &[K::KeyK],
+        0x4C => &[K::KeyL],
+        0x4D => &[K::KeyM],
+        0x4E => &[K::KeyN],
+        0x4F => &[K::KeyO],
+        0x50 => &[K::KeyP],
+        0x51 => &[K::KeyQ],
+        0x52 => &[K::KeyR],
+        0x53 => &[K::KeyS],
+        0x54 => &[K::KeyT],
+        0x55 => &[K::KeyU],
+        0x56 => &[K::KeyV],
+        0x57 => &[K::KeyW],
+        0x58 => &[K::KeyX],
+        0x59 => &[K::KeyY],
+        0x5A => &[K::KeyZ],
         // Digits 0-9 (VK 0x30-0x39)
-        0x30 => &[K::Key0],
-        0x31 => &[K::Key1],
-        0x32 => &[K::Key2],
-        0x33 => &[K::Key3],
-        0x34 => &[K::Key4],
-        0x35 => &[K::Key5],
-        0x36 => &[K::Key6],
-        0x37 => &[K::Key7],
-        0x38 => &[K::Key8],
-        0x39 => &[K::Key9],
-        // F-keys
+        0x30 => &[K::Num0],
+        0x31 => &[K::Num1],
+        0x32 => &[K::Num2],
+        0x33 => &[K::Num3],
+        0x34 => &[K::Num4],
+        0x35 => &[K::Num5],
+        0x36 => &[K::Num6],
+        0x37 => &[K::Num7],
+        0x38 => &[K::Num8],
+        0x39 => &[K::Num9],
+        // F-keys (rdev only supports F1-F12)
         VK_F1 => &[K::F1],
         VK_F2 => &[K::F2],
         VK_F3 => &[K::F3],
@@ -495,17 +490,9 @@ fn vk_to_keycodes(vk: i32) -> &'static [device_query::Keycode] {
         VK_F10 => &[K::F10],
         VK_F11 => &[K::F11],
         VK_F12 => &[K::F12],
-        VK_F13 => &[K::F13],
-        VK_F14 => &[K::F14],
-        VK_F15 => &[K::F15],
-        VK_F16 => &[K::F16],
-        VK_F17 => &[K::F17],
-        VK_F18 => &[K::F18],
-        VK_F19 => &[K::F19],
-        VK_F20 => &[K::F20],
         // Navigation
         VK_SPACE => &[K::Space],
-        VK_RETURN => &[K::Enter],
+        VK_RETURN => &[K::Return, K::KpReturn],
         VK_TAB => &[K::Tab],
         VK_BACK => &[K::Backspace],
         VK_ESCAPE => &[K::Escape],
@@ -515,23 +502,46 @@ fn vk_to_keycodes(vk: i32) -> &'static [device_query::Keycode] {
         VK_END => &[K::End],
         VK_PRIOR => &[K::PageUp],
         VK_NEXT => &[K::PageDown],
-        VK_UP => &[K::Up],
-        VK_DOWN => &[K::Down],
-        VK_LEFT => &[K::Left],
-        VK_RIGHT => &[K::Right],
+        VK_UP => &[K::UpArrow],
+        VK_DOWN => &[K::DownArrow],
+        VK_LEFT => &[K::LeftArrow],
+        VK_RIGHT => &[K::RightArrow],
+        // Lock / system keys
         VK_CAPITAL => &[K::CapsLock],
+        VK_NUMLOCK => &[K::NumLock],
+        VK_SCROLL => &[K::ScrollLock],
+        VK_SNAPSHOT => &[K::PrintScreen],
+        VK_PAUSE => &[K::Pause],
         // Punctuation (OEM keys)
         VK_OEM_COMMA => &[K::Comma],
         VK_OEM_PERIOD => &[K::Dot],
         VK_OEM_2 => &[K::Slash],
-        VK_OEM_1 => &[K::Semicolon],
-        VK_OEM_7 => &[K::Apostrophe],
+        VK_OEM_1 => &[K::SemiColon],
+        VK_OEM_7 => &[K::Quote],
         VK_OEM_4 => &[K::LeftBracket],
         VK_OEM_6 => &[K::RightBracket],
         VK_OEM_5 => &[K::BackSlash],
-        VK_OEM_3 => &[K::Grave],
+        VK_OEM_3 => &[K::BackQuote],
+        VK_OEM_102 => &[K::IntlBackslash],
         VK_OEM_MINUS => &[K::Minus],
         VK_OEM_PLUS => &[K::Equal],
+        // Numpad digits
+        VK_NUMPAD0 => &[K::Kp0],
+        VK_NUMPAD1 => &[K::Kp1],
+        VK_NUMPAD2 => &[K::Kp2],
+        VK_NUMPAD3 => &[K::Kp3],
+        VK_NUMPAD4 => &[K::Kp4],
+        VK_NUMPAD5 => &[K::Kp5],
+        VK_NUMPAD6 => &[K::Kp6],
+        VK_NUMPAD7 => &[K::Kp7],
+        VK_NUMPAD8 => &[K::Kp8],
+        VK_NUMPAD9 => &[K::Kp9],
+        // Numpad operators
+        VK_ADD => &[K::KpPlus],
+        VK_SUBTRACT => &[K::KpMinus],
+        VK_MULTIPLY => &[K::KpMultiply],
+        VK_DIVIDE => &[K::KpDivide],
+        VK_DECIMAL => &[K::KpDelete],
         _ => &[],
     }
 }
